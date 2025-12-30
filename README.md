@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Secret Pastebin (Next.js + Neon Postgres)
 
-## Getting Started
+A secure, serverless pastebin application built with **Next.js 16** and **Neon PostgreSQL**. This project allows users to create text pastes with configurable expiration times (TTL) and view-count limits.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Persistence:** Uses a real PostgreSQL database (Neon) to ensure data survives across requests and serverless cold starts.
+- **Deterministic Testing:** Supports the `x-test-now-ms` header to simulate time for automated expiration testing.
+- **Safe Rendering:** Content is rendered using standard React data binding to prevent XSS (Script Execution).
+- **IST Support:** Displays all timestamps in **Indian Standard Time (IST)** for a localized user experience while maintaining UTC consistency in the database.
+- **Ephemeral Pastes:** Pastes automatically become unavailable (404) once they expire or reach their view limit.
+
+## 🛠️ Tech Stack
+
+- **Framework:** Next.js 15 (App Router)
+- **Database:** [Neon Postgres](https://neon.tech)
+- **Driver:** `@neondatabase/serverless` (Direct SQL approach)
+- **ID Generation:** `nanoid`
+
+---
+
+## 📋 Database Schema
+
+The persistence layer is managed in Neon with the following table structure. You can run this in your Neon SQL console:
+
+```sql
+CREATE TABLE "Paste" (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP WITH TIME ZONE,
+  max_views INTEGER,
+  remaining_views INTEGER
+);
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 💻 Steps to Run Locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Follow these instructions to set up the project on your local machine:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Prerequisites
 
-## Learn More
+    Node.js (v18.x or later)
 
-To learn more about Next.js, take a look at the following resources:
+    npm or yarn
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+    A Neon.tech account
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Clone the Repository
+    ```Bash
+    git clone <repository-url>
+    cd <project-folder>
+    ```
 
-## Deploy on Vercel
+3. Install Dependencies
+    ```Bash
+    npm install
+    ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Configure Environment Variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+    Create a file named .env in the root directory and add your connection string:
+
+    ```Code snippet
+    # Get this from your Neon Dashboard
+    DATABASE_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"
+    
+    # Required for enabling the x-test-now-ms testing features
+    TEST_MODE="1"
+    ```
+
+5. Run the Application
+    ```Bash
+    npm run dev
+    ```
+    The application will be available at http://localhost:3000.
+
+## 📖 API Documentation
+    
+1. Health Check
+
+    `GET /api/healthz`
+
+    Returns: `{ "ok": true }` (200 OK) if the database is reachable.
+
+2. Create Paste
+
+    `POST /api/pastes`
+
+    Body:
+    ```JSON
+    {
+    "content": "Secret message",
+    "ttl_seconds": 3600,
+    "max_views": 5
+    }
+    ```
+    Returns: 201 Created with the id and shareable url.
+
+
+3. Fetch Paste (API)
+    
+    `GET /api/pastes/:id`
+
+    - Header Support: Supports `x-test-now-ms` (UTC milliseconds) to simulate a specific time for expiry checks.
+
+    - Returns: JSON data of the paste. Returns `404` if expired or view limit reached.
+
+## 🧪 Testing Expiry (Deterministic Time)
+This application supports deterministic time testing. You can override the current server time using the x-test-now-ms header.
+
+1. Create a paste with ttl_seconds: 60.
+
+2. Send a GET request to /api/pastes/:id.
+
+3. Add Header: x-test-now-ms: 2524608000000 (Jan 1, 2050).
+
+4. The API will return 404 Not Found because the simulated time is in the future relative to the TTL.
+
+## 🛡️ Security
+- No Script Execution: All content is rendered as plain text within `<pre>` tags. React's automatic escaping ensures that any embedded `<script>` tags are rendered as text and not executed.
+
+- Atomic Updates: View counts are decremented directly in the SQL query `(SET remaining_views = remaining_views - 1)` to prevent race conditions during high concurrent traffic.
+
+## 🇮🇳 Timezone Handling
+Timestamps are stored in UTC in the database to ensure compatibility with `x-test-now-ms` testing and global consistency. However, the UI displays dates in Indian Standard Time (IST) using the `Asia/Kolkata` timezone for a seamless user experience.
