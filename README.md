@@ -7,7 +7,6 @@ A secure, serverless pastebin application built with **Next.js 16** and **Neon P
 - **Persistence:** Uses a real PostgreSQL database (Neon) to ensure data survives across requests and serverless cold starts.
 - **Deterministic Testing:** Supports the `x-test-now-ms` header to simulate time for automated expiration testing.
 - **Safe Rendering:** Content is rendered using standard React data binding to prevent XSS (Script Execution).
-- **IST Support:** Displays all timestamps in **Indian Standard Time (IST)** for a localized user experience while maintaining UTC consistency in the database.
 - **Ephemeral Pastes:** Pastes automatically become unavailable (404) once they expire or reach their view limit.
 
 ## 🛠️ Tech Stack
@@ -122,5 +121,3 @@ This application supports deterministic time testing. You can override the curre
 
 - Atomic Updates: View counts are decremented directly in the SQL query `(SET remaining_views = remaining_views - 1)` to prevent race conditions during high concurrent traffic.
 
-## 🇮🇳 Timezone Handling
-Timestamps are stored in UTC in the database to ensure compatibility with `x-test-now-ms` testing and global consistency. However, the UI displays dates in Indian Standard Time (IST) using the `Asia/Kolkata` timezone for a seamless user experience.
